@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin | Gaurav's Portfolio</title>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+
+    header {
+      background: #000;
+      color: #fff;
+      padding: 16px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .container {
+      padding: 16px;
+    }
+
+    .stats {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #fff;
+      padding: 14px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+
+    .card h3 {
+      color: #4285f4;
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .card p {
+      margin: 6px 0 0;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    input[type="text"] {
+      
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+
+    .message-card {
+      background: #fff;
+      padding: 14px;
+      margin-bottom: 14px;
+      border-radius: 8px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+    }
+
+    .message-card p {
+      margin: 4px 0;
+      font-size: 0.9rem;
+    }
+
+    .message-card .status {
+      font-weight: 600;
+      color: green;
+    }
+
+    .message-card .status.unread {
+      color: red;
+    }
+
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn-view {
+      background: #4285f4;
+      color: #fff;
+    }
+
+    .btn-delete {
+      background: #d93025;
+      color: #fff;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .close-modal {
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    @media (min-width: 600px) {
+      .stats {
+        flex-direction: row;
+      }
+
+      .message-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .message-card > div {
+        flex: 1;
+      }
+
+      .message-card .actions {
+        justify-content: flex-end;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>Admin Panel</header>
+
+  <div class="container">
+    <div class="stats">
+      <div class="card"><h3 id="totalMessages">0</h3><p>Total Messages</p></div>
+      <div class="card"><h3 id="unreadMessages">0</h3><p>Unread</p></div>
+      <div class="card"><h3 id="todayMessages">0</h3><p>Today</p></div>
+    </div>
+
+    <input type="text" id="searchMessages" placeholder="Search messages...">
+
+    <div id="messagesContainer"></div>
+  </div>
+
+  <div class="modal" id="messageModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong>Message</strong>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div id="messageDetails"></div>
+    </div>
+  </div>
+
+<div class="modal" id="deleteModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <strong>Confirm Delete</strong>
+      <span class="close-modal" onclick="closeDeleteModal()">&times;</span>
+    </div>
+    <div>
+      <p>Are you sure you want to delete this message?</p>
+      <div style="margin-top: 16px; text-align: right;">
+        <button class="btn" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-delete" id="confirmDeleteBtn">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBrlpqy8RY9jb9ZK_-Q9sjJDTSPp-rSHTI",
+      authDomain: "portfolio-website-2d969.firebaseapp.com",
+      projectId: "portfolio-website-2d969",
+      storageBucket: "portfolio-website-2d969.appspot.com",
+      messagingSenderId: "578469599468",
+      appId: "1:578469599468:web:6551387ea83cf8bc086dc9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const messageContainer = document.getElementById('messagesContainer');
+    const messageModal = document.getElementById('messageModal');
+    const messageDetails = document.getElementById('messageDetails');
+    const closeModal = document.querySelector('.close-modal');
+    const searchInput = document.getElementById('searchMessages');
+
+    const totalMessagesEl = document.getElementById('totalMessages');
+    const unreadMessagesEl = document.getElementById('unreadMessages');
+    const todayMessagesEl = document.getElementById('todayMessages');
+
+    function formatDate(timestamp) {
+      if (!timestamp) return 'N/A';
+      return new Date(timestamp).toLocaleString();
+    }
+
+    function loadMessages() {
+      const ref = database.ref('messages');
+      ref.on('value', (snapshot) => {
+        const messages = [];
+        let total = 0, unread = 0, today = 0;
+        const todayDate = new Date().toDateString();
+
+        snapshot.forEach((child) => {
+          const msg = child.val();
+          msg.id = child.key;
+          messages.push(msg);
+          total++;
+          if (!msg.read) unread++;
+          if (new Date(msg.timestamp).toDateString() === todayDate) today++;
+        });
+
+        totalMessagesEl.textContent = total;
+        unreadMessagesEl.textContent = unread;
+        todayMessagesEl.textContent = today;
+
+        renderMessages(messages.reverse());
+      });
+    }
+
+    function renderMessages(messages) {
+      messageContainer.innerHTML = messages.length === 0
+        ? '<p>No messages found</p>'
+        : messages.map(msg => `
+          <div class="message-card" data-id="${msg.id}">
+            <div>
+              <p><strong>${msg.name || 'No Name'}</strong></p>
+              <p>${msg.email || '-'}</p>
+              <p>${msg.subject || 'No subject'}</p>
+              <p>${formatDate(msg.timestamp)}</p>
+              <p class="status ${msg.read ? '' : 'unread'}">${msg.read ? 'Read' : 'Unread'}</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn-view" data-id="${msg.id}">View</button>
+              <button class="btn btn-delete" data-id="${msg.id}">Delete</button>
+            </div>
+          </div>
+        `).join('');
+
+      document.querySelectorAll('.btn-view').forEach(btn => btn.addEventListener('click', viewMessage));
+      document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', deleteMessage));
+    }
+
+    function viewMessage(e) {
+      const id = e.target.dataset.id;
+      const ref = database.ref('messages/' + id);
+      ref.once('value').then(snapshot => {
+        const msg = snapshot.val();
+        ref.update({ read: true });
+        messageDetails.innerHTML = `
+          <p><strong>Name:</strong> ${msg.name}</p>
+          <p><strong>Email:</strong> ${msg.email}</p>
+          <p><strong>Subject:</strong> ${msg.subject}</p>
+          <p><strong>Date:</strong> ${formatDate(msg.timestamp)}</p>
+          <p><strong>Message:</strong></p>
+          <p style="background:#f1f1f1;padding:10px;border-radius:6px;">${msg.message}</p>
+        `;
+        messageModal.style.display = 'flex';
+      });
+    }
+
+    let messageIdToDelete = null;
+
+function deleteMessage(e) {
+  messageIdToDelete = e.target.dataset.id;
+  document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function closeDeleteModal() {
+  messageIdToDelete = null;
+  document.getElementById('deleteModal').style.display = 'none';
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+  if (messageIdToDelete) {
+    firebase.database().ref('messages/' + messageIdToDelete).remove()
+      .then(() => {
+        closeDeleteModal();
+      })
+      .catch(err => {
+        alert('Error deleting message: ' + err.message);
+        closeDeleteModal();
+      });
+  }
+});
+
+    function searchMessages() {
+      const query = searchInput.value.toLowerCase();
+      document.querySelectorAll('.message-card').forEach(card => {
+        card.style.display = card.textContent.toLowerCase().includes(query) ? '' : 'none';
+      });
+    }
+
+    closeModal.addEventListener('click', () => messageModal.style.display = 'none');
+    window.addEventListener('click', (e) => {
+      if (e.target === messageModal) messageModal.style.display = 'none';
+    });
+
+    searchInput.addEventListener('input', searchMessages);
+    loadMessages();
+  </script>
+</body>
+</html>
