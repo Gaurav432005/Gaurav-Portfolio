@@ -389,6 +389,8 @@ a {
 
 .contact-info {
     padding: 30px;
+    background-color: var(--light-gray);
+    border-radius: 10px;
 }
 
 .contact-info h3 {
